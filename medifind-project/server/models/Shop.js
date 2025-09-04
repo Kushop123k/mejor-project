@@ -1,89 +1,57 @@
-const express = require('express');
-const router = express.Router();
-const auth = require('../middleware/auth');
-const Shop = require('../models/Shop');
-const User = require('../models/User');
+const mongoose = require('mongoose');
 
-// --- EXISTING ROUTES (No Changes) ---
-router.post('/', auth, /* ... your code ... */);
-router.put('/inventory', auth, /* ... your code ... */);
-router.get('/me', auth, /* ... your code ... */);
-router.get('/search/:medicine', async (req, res) => { /* ... your existing, working search code ... */ });
+const ShopSchema = new mongoose.Schema({
+    owner: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'User',
+        required: true
+    },
+    shopName: { type: String, required: true, trim: true },
+    address: {
+        street: { type: String, required: true },
+        city: { type: String, required: true },
+        state: { type: String, required: true },
+        pincode: { type: String, required: true }
+    },
+    location: {
+        type: {
+            type: String,
+            enum: ['Point'], // 'location.type' must be 'Point'
+            required: true
+        },
+        coordinates: {
+            type: [Number], // [longitude, latitude]
+            required: true
+        }
+    },
+    licenseNumber: { type: String, required: true, unique: true },
+    contactNumber: { type: String, required: true },
+    isOpen: { type: Boolean, default: true },
+    
+    inventory: [{
+        medicineName: { type: String, required: true },
+        brand: String,
+        price: { type: Number, required: true },
+        stock: { type: Number, required: true, default: 0 },
+        discountPercent: { type: Number, default: 0 },
+        imageUrl: { type: String, default: 'https://placehold.co/400x400/e9ecef/6c757d?text=No+Image' },
+    }],
 
-
-// --- NEW ENDPOINT 1: Get Nearby Shops ---
-// @route   GET /api/shops/nearby
-// @desc    Get a list of shops near a location
-// @access  Public
-router.get('/nearby', async (req, res) => {
-    const { longitude, latitude } = req.query;
-    if (!longitude || !latitude) {
-        return res.status(400).json({ msg: 'Location is required.' });
+    offers: [{
+        couponCode: { type: String, required: true, trim: true, uppercase: true },
+        discountPercentage: { type: Number, required: true, min: 1, max: 100 },
+        isActive: { type: Boolean, default: true }
+    }],
+    
+    createdAt: {
+        type: Date,
+        default: Date.now
     }
-    try {
-        const shops = await Shop.aggregate([
-            {
-                $geoNear: {
-                    near: { type: 'Point', coordinates: [parseFloat(longitude), parseFloat(latitude)] },
-                    distanceField: 'distance',
-                    maxDistance: 10000, // 10km
-                    spherical: true
-                }
-            },
-            { $limit: 5 } // Limit to the 5 closest shops
-        ]);
-        res.json(shops);
-    } catch (err) { console.error(err.message); res.status(500).send('Server Error'); }
 });
 
+// This line is CRITICAL. It tells MongoDB to create the special index
+// needed for geospatial queries like finding nearby shops.
+ShopSchema.index({ location: '2dsphere' });
 
-// --- NEW ENDPOINT 2: Get Featured Medicines ---
-// @route   GET /api/shops/featured
-// @desc    Get a random list of popular medicines from nearby shops
-// @access  Public
-router.get('/featured', async (req, res) => {
-    const { longitude, latitude } = req.query;
-    if (!longitude || !latitude) {
-        return res.status(400).json({ msg: 'Location is required.' });
-    }
-    try {
-        const featuredItems = await Shop.aggregate([
-            {
-                $geoNear: {
-                    near: { type: 'Point', coordinates: [parseFloat(longitude), parseFloat(latitude)] },
-                    distanceField: 'distance',
-                    maxDistance: 10000,
-                    spherical: true
-                }
-            },
-            { $unwind: '$inventory' }, // Open up the inventory of all nearby shops
-            { $match: { 'inventory.stock': { $gt: 0 } } }, // Only show items that are in stock
-            { $sample: { size: 4 } }, // Get 4 random medicines from the combined inventory
-            {
-                // Add the shop's name to each medicine
-                $lookup: {
-                    from: 'shops',
-                    localField: '_id',
-                    foreignField: '_id',
-                    as: 'shopInfo'
-                }
-            },
-            { $unwind: '$shopInfo' },
-            {
-                // Format the final output
-                $project: {
-                    _id: '$inventory._id',
-                    medicineName: '$inventory.medicineName',
-                    imageUrl: '$inventory.imageUrl',
-                    price: '$inventory.price',
-                    shopName: '$shopInfo.shopName',
-                    shopId: '$_id'
-                }
-            }
-        ]);
-        res.json(featuredItems);
-    } catch (err) { console.error(err.message); res.status(500).send('Server Error'); }
-});
-
-module.exports = router;
+module.exports = mongoose.model('Shop', ShopSchema);
 
