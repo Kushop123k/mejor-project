@@ -17,26 +17,13 @@ const OrderSchema = new mongoose.Schema({
         quantity: { type: Number, required: true },
         price: { type: Number, required: true }
     }],
-    totalAmount: { // The price before any discounts
-        type: Number,
-        required: true
-    },
-    couponUsed: {
-        type: String,
-        trim: true,
-        uppercase: true
-    },
-    discountAmount: {
-        type: Number,
-        default: 0
-    },
-    finalAmount: { // The price the customer actually pays
-        type: Number,
-        required: true
-    },
+    totalAmount: { type: Number, required: true },
+    couponUsed: { type: String, trim: true, uppercase: true },
+    discountAmount: { type: Number, default: 0 },
+    finalAmount: { type: Number, required: true },
     paymentStatus: {
         type: String,
-        enum: ['Unpaid', 'Paid'], // Simplified for COD
+        enum: ['Unpaid', 'Paid'],
         default: 'Unpaid'
     },
     status: {
