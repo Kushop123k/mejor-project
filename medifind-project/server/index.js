@@ -1,4 +1,4 @@
-// THIS MUST BE THE VERY FIRST LINE
+// THIS MUST BE THE VERY FIRST LINE to load your secrets
 require('dotenv').config();
 
 const express = require('express');
@@ -8,37 +8,39 @@ const cors = require('cors');
 const app = express();
 
 // --- Middleware ---
-app.use(cors());
+// This allows your live frontend to talk to your live backend
+app.use(cors({
+    origin: process.env.CORS_ORIGIN
+}));
+// This increases the data limit for features like the AI Prescription Scanner
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ limit: '50mb', extended: true }));
 
 
-// --- Define Routes ---
+// --- Define All API Routes ---
 app.use('/api/auth', require('./routes/auth'));
-app.use('/api/shop', require('./routes/shop'));
+app.use('/api/shops', require('./routes/shops'));
 app.use('/api/ai', require('./routes/ai'));
+app.use('/api/orders', require('./routes/orders'));
 app.use('/api/admin', require('./routes/admin'));
-app.use('/api/Order', require('./routes/Order'));
+
 
 // --- Database Connection ---
 const connectDB = async () => {
     try {
-        // This line will now correctly find the MONGO_URI from the .env file
-        await mongoose.connect(process.env.MONGO_URI, {
-            useNewUrlParser: true,
-            useUnifiedTopology: true
-        });
+        // This line reads your MONGO_URI from the .env file
+        await mongoose.connect(process.env.MONGO_URI);
         console.log('Successfully connected to MongoDB.');
     } catch (err) {
         console.error("Database Connection Error:", err.message);
-        process.exit(1); // Exit process with failure
+        process.exit(1); // Exit the process with failure if connection fails
     }
 };
 
 connectDB();
 
 
-// --- Basic Route for checking if server is up ---
+// --- Basic Route to check if the server is up ---
 app.get('/', (req, res) => {
     res.send('MediFind API is running...');
 });
@@ -46,5 +48,6 @@ app.get('/', (req, res) => {
 
 // --- Start Server ---
 const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => console.log(`Server is running on port ${PORT}`));
+// The host '0.0.0.0' is required for deployment services like Render
+app.listen(PORT, '0.0.0.0', () => console.log(`Server is running on port ${PORT}`));
 
