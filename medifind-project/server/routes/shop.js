@@ -133,7 +133,7 @@ router.put('/inventory/:medicineId', auth, async (req, res) => {
         const medicine = shop.inventory.id(req.params.medicineId);
         if (!medicine) return res.status(404).json({ msg: 'Medicine not found in inventory' });
 
-        // Update the fields
+        // Update the fields from the request body
         const { medicineName, brand, price, stock, discountPercent, imageUrl } = req.body;
         medicine.set({ medicineName, brand, price, stock, discountPercent, imageUrl });
         
@@ -153,7 +153,7 @@ router.delete('/inventory/:medicineId', auth, async (req, res) => {
         const shop = await Shop.findOne({ owner: req.user.id });
         if (!shop) return res.status(404).json({ msg: 'Shop not found' });
 
-        // Use the pull method to remove the subdocument
+        // Use the pull method to remove the subdocument from the inventory array
         shop.inventory.pull({ _id: req.params.medicineId });
         
         await shop.save();
